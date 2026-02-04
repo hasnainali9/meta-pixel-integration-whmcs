@@ -78,7 +78,8 @@ function meta_pixel_config()
 function meta_pixel_output($vars)
 {
     // Get the addon settings
-    $pixelId = isset($vars['pixel_id']) ? $vars['pixel_id'] : '3244586562373140';
+    $pixelIdRaw = isset($vars['pixel_id']) ? (string) $vars['pixel_id'] : '3244586562373140';
+    $pixelIdSafe = preg_replace('/\D+/', '', $pixelIdRaw);
 
     // Map yes/no settings to hook locations
     $hookLocations = [];
@@ -103,90 +104,122 @@ function meta_pixel_output($vars)
         $hookLocations[] = 'ClientAreaHeadOutput';
     }
 
+    $eventsEnabled = [
+        'ViewContent' => (isset($vars['hook_locations_product']) && $vars['hook_locations_product'] == 'on'),
+        'InitiateCheckout' => (isset($vars['hook_locations_checkout']) && $vars['hook_locations_checkout'] == 'on'),
+        'Purchase' => (isset($vars['track_purchase']) && $vars['track_purchase'] == 'on'),
+    ];
+
     // Available hook locations
     $availableLocations = [
-        'ClientAreaHeadOutput' => 'Client Area Head',
+        'ClientAreaHeadOutput' => 'Client Area &lt;head&gt;',
         'ClientAreaHeaderOutput' => 'Client Area Header',
         'ClientAreaFooterOutput' => 'Client Area Footer',
         'ClientAreaProductDetailsOutput' => 'Product Details Page',
         'ShoppingCartCheckoutOutput' => 'Shopping Cart Checkout'
     ];
 
-    // Start output buffer
-    echo '<div class="alert alert-success">Meta Pixel is configured and working! Current Pixel ID: <strong>' . htmlspecialchars($pixelId) . '</strong></div>';
+    // Styles (kept minimal and scoped)
+    echo <<<HTML
+<style>
+#meta-pixel-wrap{max-width:1100px}
+#meta-pixel-wrap .mp-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width: 992px){#meta-pixel-wrap .mp-grid{grid-template-columns:1fr 1fr}}
+#meta-pixel-wrap .mp-card{background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:16px}
+#meta-pixel-wrap .mp-title{margin:0 0 8px 0;font-weight:600}
+#meta-pixel-wrap .mp-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#meta-pixel-wrap code{background:#f5f5f5;padding:2px 6px;border-radius:4px}
+#meta-pixel-wrap .mp-table td,#meta-pixel-wrap .mp-table th{vertical-align:middle}
+#meta-pixel-wrap .mp-muted{color:#6b7280}
+</style>
+HTML;
 
-    echo '<div class="panel panel-default">';
-    echo '<div class="panel-heading"><h3 class="panel-title">Meta Pixel Configuration</h3></div>';
-    echo '<div class="panel-body">';
+    echo '<div id="meta-pixel-wrap">';
 
-    // Current hook locations
-    echo '<h4>Current Hook Locations</h4>';
-    echo '<p>The Meta Pixel code is currently being injected at these locations:</p>';
-    echo '<ul>';
+    // Header summary
+    echo '<div class="mp-card" style="margin-bottom:16px">';
+    echo '<h2 class="mp-title">Meta Pixel Integration (WHMCS v9)</h2>';
+    echo '<p class="mp-muted" style="margin:0">Author: <strong>Hasnain Ali</strong> &middot; Tracks <strong>PageView</strong> and optional standard events.</p>';
 
-    foreach ($availableLocations as $hook => $friendlyName) {
-        if (in_array($hook, $hookLocations)) {
-            echo '<li><span class="label label-success">ENABLED</span> ' . htmlspecialchars($friendlyName) . ' (' . htmlspecialchars($hook) . ')</li>';
-        } else {
-            echo '<li><span class="label label-default">DISABLED</span> ' . htmlspecialchars($friendlyName) . ' (' . htmlspecialchars($hook) . ')</li>';
-        }
+    if ($pixelIdSafe !== '') {
+        echo '<div class="alert alert-success" style="margin-top:12px">Pixel ID configured: <strong>' . htmlspecialchars($pixelIdSafe) . '</strong></div>';
+    } else {
+        echo '<div class="alert alert-warning" style="margin-top:12px">Pixel ID looks empty/invalid. Please set a numeric Pixel ID in the Configure tab.</div>';
     }
 
-    echo '</ul>';
-
-    // Information about each hook location
-    echo '<h4>Hook Location Information</h4>';
-    echo '<div class="table-responsive">';
-    echo '<table class="table table-bordered">';
-    echo '<thead><tr><th>Hook</th><th>Description</th><th>Example Use Case</th></tr></thead>';
-    echo '<tbody>';
-    echo '<tr><td>Client Area Head</td><td>Injected in the &lt;head&gt; section of all client area pages</td><td>Standard Meta Pixel implementation</td></tr>';
-    echo '<tr><td>Client Area Header</td><td>Injected at the top of the page body</td><td>If you need the pixel to load earlier in the page</td></tr>';
-    echo '<tr><td>Client Area Footer</td><td>Injected at the bottom of pages</td><td>If you want the pixel to load after all other content</td></tr>';
-    echo '<tr><td>Product Details Page</td><td>Special implementation for product pages with ViewContent event</td><td>Track when customers view specific products</td></tr>';
-    echo '<tr><td>Shopping Cart Checkout</td><td>Special implementation for checkout with InitiateCheckout event</td><td>Track when customers start the checkout process</td></tr>';
-    echo '</tbody>';
-    echo '</table>';
+    echo '<div class="mp-badges">';
+    foreach ($eventsEnabled as $event => $enabled) {
+        $label = $enabled ? 'label label-success' : 'label label-default';
+        $text = $enabled ? 'ENABLED' : 'DISABLED';
+        echo '<span class="' . $label . '">' . htmlspecialchars($event) . ': ' . $text . '</span>';
+    }
+    echo '</div>';
     echo '</div>';
 
-    echo '<p class="alert alert-info">To change which hooks are enabled, go to the "Configure" tab above and check/uncheck the desired locations.</p>';
+    echo '<div class="mp-grid">';
 
-    // Example pixel code
-    echo '<h4>Example Meta Pixel Code</h4>';
+    // Hook locations card
+    echo '<div class="mp-card">';
+    echo '<h3 class="mp-title">Hook Locations</h3>';
+    echo '<p class="mp-muted">These settings control where the base pixel code is injected. Even if multiple locations are enabled, the pixel is injected <strong>only once</strong> to prevent duplicates.</p>';
+    echo '<div class="table-responsive">';
+    echo '<table class="table table-bordered mp-table">';
+    echo '<thead><tr><th>Location</th><th>Status</th><th>Hook Name</th></tr></thead>';
+    echo '<tbody>';
+    foreach ($availableLocations as $hook => $friendlyName) {
+        $isOn = in_array($hook, $hookLocations);
+        $badge = $isOn ? '<span class="label label-success">ENABLED</span>' : '<span class="label label-default">DISABLED</span>';
+        echo '<tr><td>' . $friendlyName . '</td><td>' . $badge . '</td><td><code>' . htmlspecialchars($hook) . '</code></td></tr>';
+    }
+    echo '</tbody></table></div>';
+    echo '<div class="alert alert-info" style="margin-top:12px">To change these, open the <strong>Configure</strong> tab above and check/uncheck the desired locations.</div>';
+    echo '</div>';
+
+    // Events card
+    echo '<div class="mp-card">';
+    echo '<h3 class="mp-title">Events</h3>';
+    echo '<ul style="margin:0 0 10px 18px">';
+    echo '<li><strong>PageView</strong> is tracked on every client area page where the base pixel loads.</li>';
+    echo '<li><strong>ViewContent</strong> is tracked on product details pages (optional).</li>';
+    echo '<li><strong>InitiateCheckout</strong> is tracked on the checkout page (optional).</li>';
+    echo '<li><strong>Purchase</strong> is tracked on order completion / invoice contexts (optional).</li>';
+    echo '</ul>';
+
+    $purchaseSource = htmlspecialchars((string)($vars['purchase_value_source'] ?? 'auto'));
+    $purchaseCurrency = htmlspecialchars((string)($vars['purchase_currency'] ?? ''));
+
+    echo '<p class="mp-muted" style="margin:0">Purchase value source: <code>' . $purchaseSource . '</code>';
+    if ($purchaseCurrency !== '') {
+        echo ' &middot; currency override: <code>' . $purchaseCurrency . '</code>';
+    }
+    echo '</p>';
+
+    echo '<hr style="margin:14px 0">';
+    echo '<h4 class="mp-title" style="font-size:14px">Base Pixel Code Preview</h4>';
+
+    $pixelForExample = $pixelIdSafe !== '' ? $pixelIdSafe : 'YOUR_PIXEL_ID';
 
     $exampleCode = <<<HTML
 <!-- Meta Pixel Code -->
 <script>
-    ! function(f, b, e, v, n, t, s) {
-        if (f.fbq) return;
-        n = f.fbq = function() {
-            n.callMethod ?
-                n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-        };
-        if (!f._fbq) f._fbq = n;
-        n.push = n;
-        n.loaded = !0;
-        n.version = '2.0';
-        n.queue = [];
-        t = b.createElement(e);
-        t.async = !0;
-        t.src = v;
-        s = b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t, s)
-    }(window, document, 'script',
-        'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '{$pixelId}');
-    fbq('track', 'PageView');
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+ n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+ n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+ t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script',
+ 'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '{$pixelForExample}');
+fbq('track', 'PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
-        src="https://www.facebook.com/tr?id={$pixelId}&ev=PageView&noscript=1" /></noscript>
+src="https://www.facebook.com/tr?id={$pixelForExample}&ev=PageView&noscript=1" /></noscript>
 <!-- End Meta Pixel Code -->
 HTML;
 
-    echo '<pre style="margin-top: 15px; background-color: #f8f8f8; padding: 15px; border-radius: 4px;">' . htmlspecialchars($exampleCode) . '</pre>';
+    echo '<pre style="margin-top:10px; background:#0b1020; color:#e5e7eb; padding:12px; border-radius:6px; overflow:auto">' . htmlspecialchars($exampleCode) . '</pre>';
+    echo '</div>';
 
-    echo '</div>'; // panel-body
-    echo '</div>'; // panel
+    echo '</div>'; // grid
+    echo '</div>'; // wrap
 }
 
 /**
