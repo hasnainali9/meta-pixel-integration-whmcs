@@ -1,0 +1,51 @@
+# --- OS / Windows ---
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# --- JetBrains / IntelliJ / PhpStorm ---
+.idea/
+*.iml
+out/
+
+# --- VS Code (optional) ---
+.vscode/
+
+# --- macOS (in case teammates use it) ---
+.DS_Store
+
+# --- WordPress / PHP plugin dev ---
+# Environment / secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# Cache / temp
+.tmp/
+tmp/
+cache/
+
+# Local backups
+*.bak
+*.swp
+*.swo
+*~
+
+# Plugin/theme zip builds
+*.zip
+
+# --- Dependency / build artifacts (if introduced later) ---
+/vendor/
+node_modules/
+
+# PHPUnit / test artifacts
+.phpunit.result.cache
+coverage/
+
+# Composer lock can be committed; keep it tracked by default
+# (No ignore rule here on purpose)
+
