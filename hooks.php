@@ -2,7 +2,7 @@
 
 /**
  * Meta Pixel WHMCS Hooks
- * 
+ *
  * This file registers the hooks for the Meta Pixel module.
  */
 
@@ -42,9 +42,13 @@ if (!function_exists('meta_pixel_load_settings')) {
     {
         $settings = [];
         try {
-            $result = localAPI('GetModuleConfiguration', ['module' => 'meta_pixel']);
-            if (is_array($result) && ($result['result'] ?? '') === 'success' && isset($result['configuration']) && is_array($result['configuration'])) {
-                $settings = $result['configuration'];
+            // Load addon module settings from database
+            $result = \WHMCS\Database\Capsule::table('tbladdonmodules')
+                ->where('module', 'meta_pixel')
+                ->get();
+
+            foreach ($result as $row) {
+                $settings[$row->setting] = $row->value;
             }
         } catch (Exception $e) {
             // Ignore and fall back to defaults
@@ -129,7 +133,7 @@ if (!function_exists('meta_pixel_get_purchase_value')) {
 add_hook('ClientAreaPage', 1, function ($vars) {
     $settings = meta_pixel_load_settings();
 
-    $pixelId = meta_pixel_normalize_pixel_id($settings['pixel_id'] ?? '3244586562373140');
+    $pixelId = meta_pixel_normalize_pixel_id($settings['pixel_id'] ?? '');
 
     // Map yes/no settings to hook locations
     $hookLocations = [];
@@ -320,4 +324,3 @@ add_hook('ClientAreaFooterOutput', 9999, function ($vars) {
     }
     return $out;
 });
-

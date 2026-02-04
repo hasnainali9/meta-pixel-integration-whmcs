@@ -15,7 +15,7 @@ function meta_pixel_config()
                 'FriendlyName' => 'Meta Pixel ID',
                 'Type' => 'text',
                 'Size' => '25',
-                'Default' => '3244586562373140',
+                'Default' => '',
                 'Description' => 'Enter your Meta Pixel ID (numbers only).',
             ],
             'hook_locations_head' => [
@@ -78,7 +78,7 @@ function meta_pixel_config()
 function meta_pixel_output($vars)
 {
     // Get the addon settings
-    $pixelIdRaw = isset($vars['pixel_id']) ? (string) $vars['pixel_id'] : '3244586562373140';
+    $pixelIdRaw = isset($vars['pixel_id']) ? (string) $vars['pixel_id'] : '';
     $pixelIdSafe = preg_replace('/\D+/', '', $pixelIdRaw);
 
     // Map yes/no settings to hook locations
